@@ -21,7 +21,7 @@ class UserLogin extends StatefulWidget {
 
 String? onlynumber;
 String? newusername;
-String newuserPassword = '';
+String? newuserPassword ;
 String? newuserEmail;
 
 class _UserLoginState extends State<UserLogin> {
@@ -55,8 +55,7 @@ class _UserLoginState extends State<UserLogin> {
 
   GlobalKey<FormState> _formkey = GlobalKey<FormState>();
 
-  TextEditingController nameController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+
   String email = 'fredrik.eilertsen@gail.com';
 
   //COOLDOWN
@@ -98,13 +97,17 @@ class _UserLoginState extends State<UserLogin> {
           print(datalist);
           _setKey(datalist['data']['token']);
 
+
           Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => CheckINOut(),
               ));
         } else {
-          _error = datalist['message'];
+          setState(() {
+            _error = datalist['message'];
+          });
+
         }
 
         print(datalist);
@@ -124,7 +127,13 @@ class _UserLoginState extends State<UserLogin> {
   }
 
 
-// MOBILE NUMBER VERIFY LOGICS
+@override
+  void dispose() {
+    // TODO: implement dispose
+  newusername= null;
+  newuserPassword = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -264,6 +273,11 @@ class _UserLoginState extends State<UserLogin> {
                               passworderror = "Password can't be empty";
                             });
                           }
+                          else if (value!.length < 3) {
+                            setState(() {
+                              nameerror = "Too short name";
+                            });
+                          }
 
                         },
                         obscureText: true,
@@ -369,8 +383,8 @@ class _UserLoginState extends State<UserLogin> {
               padding: const EdgeInsets.all(8.0),
               child: Icon(Icons.error_outline_outlined, color: Colors.red),
             ),
-            Container(
-                width: MediaQuery.of(context).size.width - 100,
+            Expanded(
+
                 child: Text(
                   "$_error",
                   style: TextStyle(color: Colors.red),

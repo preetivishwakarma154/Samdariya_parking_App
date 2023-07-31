@@ -1,11 +1,27 @@
 import 'dart:convert';
 
+import 'package:decimal/decimal.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:samdriya/SplashScreen.dart';
+import 'package:samdriya/UserLogin.dart';
 import 'package:samdriya/constant.dart';
 import 'package:http/http.dart' as http;
 import 'package:samdriya/login.dart';
 import 'package:samdriya/vehicleCheckIn.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
+import 'package:printing/printing.dart';
+
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:shared_preferences/shared_preferences.dart';
+
+var total;
 
 class Summary extends StatefulWidget {
   const Summary({super.key});
@@ -17,14 +33,20 @@ class Summary extends StatefulWidget {
 Map summaryData = Map();
 Map summaryList = Map();
 
+var _key;
+
 class _SummaryState extends State<Summary> {
+  double? result;
+
+  var one, two, three;
+
   Future SummaryAPI() async {
     try {
       var headers = {
-        'x-access-token': '$globalusertoken',
-        'Cookie': 'ci_session=66f9cac100970c304030861ad8aa31153089a12e'
+        'x-access-token':
+            'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwiaWF0IjoxNjg5NjY2MDAyfQ.4oj59bZCDZ-OiAuaBNxPvjosnpraq7DKiR61yodoTqU',
+        'Cookie': 'ci_session=9db02f6e17c5ac8b5ff9545bedba8d3edee3d163'
       };
-      print("api called");
       var request = http.MultipartRequest(
           'POST',
           Uri.parse(
@@ -33,15 +55,30 @@ class _SummaryState extends State<Summary> {
       request.headers.addAll(headers);
 
       http.StreamedResponse response = await request.send();
-       print(await response.stream.bytesToString());
       var data = await response.stream.bytesToString();
+      print("api called");
+      setState(() {
+        summaryData = jsonDecode(data);
+
+        print(summaryData);
+      });
 
       if (response.statusCode == 200) {
-        setState(() {
-          summaryData = jsonDecode(data);
-          summaryList = summaryData['data'];
-          print(summaryList);
-        });
+        if (summaryData['status'] == 1) {
+          setState(() {
+            summaryList = summaryData['data'];
+            print(summaryList);
+            double one =
+                double.parse(summaryData['data']['res_bike']['total_amount']);
+
+            double second =
+                double.parse(summaryData['data']['res_car']['total_amount']);
+            double three = double.parse(
+                summaryData['data']['res_vip_car']['total_amount']);
+            total = one + second + three;
+            print(total);
+          });
+        }
       } else {
         print(response.reasonPhrase);
       }
@@ -50,9 +87,22 @@ class _SummaryState extends State<Summary> {
     }
   }
 
+  void _deletetoken() async {
+    print('running');
+    final prefs = await SharedPreferences.getInstance();
+    final key = prefs.remove('token');
+    setState(() {
+      _key = key;
+    });
+    print('YOUR KEY - "$key"');
+    print('key deleted');
+  }
+
   @override
   void initState() {
-    SummaryAPI();
+    setState(() {
+      SummaryAPI();
+    });
     super.initState();
   }
 
@@ -62,11 +112,46 @@ class _SummaryState extends State<Summary> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         shadowColor: Colors.transparent,
+        leading: BackButton(
+          color: Colors.black,
+        ),
         actions: [
-          appBarButton(
-            buttonText: "Logout",
-            context: context,
-            function: Login(),
+          Padding(
+            padding: const EdgeInsets.only(top: 20, right: 20, bottom: 5),
+            child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: ThemeColorRed),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: new Text('Are you sure?'),
+                      content: new Text('Do you want to Logout'),
+                      actions: <Widget>[
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.of(context).pop(false), //<-- SEE HERE
+                          child: new Text('No'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _deletetoken();
+                            Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (BuildContext context) =>
+                                        UserLogin()),
+                                ModalRoute.withName('/'));
+                          }, // <-- SEE HERE
+                          child: new Text('Yes'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: Text(
+                  "Logout",
+                  style: TextStyle(color: Colors.white),
+                )),
           ),
           appBarButton(
             buttonText: "Back",
@@ -81,104 +166,136 @@ class _SummaryState extends State<Summary> {
                 child: CircularProgressIndicator(),
               ),
             )
-          : Container(
-              margin: EdgeInsets.only(right: 20, left: 20, top: 30),
-              child: Table(
-                border: TableBorder.all(color: Colors.black12),
-                columnWidths: const <int, TableColumnWidth>{
-                  0: IntrinsicColumnWidth(),
-                  1: IntrinsicColumnWidth(),
-                  2: IntrinsicColumnWidth(),
-                  3: IntrinsicColumnWidth(),
-                  4: IntrinsicColumnWidth(),
-                },
-                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                children: <TableRow>[
-                  TableRow(
-                    children: <Widget>[
-                      TableHeading("S.No."),
-                      TableHeading("Vehicle Type"),
-                      TableHeading("Total"),
-                      TableHeading("Amount"),
-                      TableHeading("Total Amount"),
-                    ],
-                  ),
-                  TableRow(
-                    children: <Widget>[
-                      TableData("1"),
-                      TableData("Bike"),
-                      TableData(
-                          summaryData['data']['res_bike']['total_vehicle']),
-                      TableData(
-                          summaryData['data']['res_bike']['total_amount']),
-                      TableData(
-                        summaryData['data']['res_bike']['amount'],
-                      )
-                    ],
-                  ),
-                  TableRow(
-                    children: <Widget>[
-                      TableData("2"),
-                      TableData("Car"),
-                      TableData(
-                          summaryData['data']['res_car']['total_vehicle']),
-                      TableData(summaryData['data']['res_car']['total_amount']),
-                      TableData(
-                        summaryData['data']['res_car']['amount'],
-                      )
-                    ],
-                  ),
-                  TableRow(
-                    children: <Widget>[
-                      TableData("3"),
-                      TableData("VIP Car"),
-                      TableData(
-                          summaryData['data']['res_vip_car']['total_vehicle']),
-                      TableData(
-                          summaryData['data']['res_vip_car']['total_amount']),
-                      TableData(
-                        summaryData['data']['res_vip_car']['amount'],
-                      )
-                    ],
-                  ),
-                ],
-              ),
+          : Column(
+              children: [
+                Container(
+                  margin:
+                      EdgeInsets.only(right: 20, left: 20, top: 30, bottom: 10),
+                  // ignore: unnecessary_null_comparison
+                  child: summaryList != null
+                      ? Table(
+                          border: TableBorder.all(color: Colors.black12),
+                          columnWidths: const <int, TableColumnWidth>{
+                            0: IntrinsicColumnWidth(),
+                            1: IntrinsicColumnWidth(),
+                            2: IntrinsicColumnWidth(),
+                            3: IntrinsicColumnWidth(),
+                            4: IntrinsicColumnWidth(),
+                          },
+                          defaultVerticalAlignment:
+                              TableCellVerticalAlignment.middle,
+                          children: <TableRow>[
+                            TableRow(
+                              children: <Widget>[
+                                TableHeading("S.No."),
+                                TableHeading("Vehicle Type"),
+                                TableHeading("Total"),
+                                TableHeading("Amount"),
+                                TableHeading("Total Amount"),
+                              ],
+                            ),
+                            TableRow(
+                              children: <Widget>[
+                                TableData("1"),
+                                TableData("Bike"),
+                                TableData(summaryData['data']['res_bike']
+                                            ['total_vehicle'] ==
+                                        null
+                                    ? '0'
+                                    : summaryData['data']['res_bike']
+                                        ['total_vehicle']),
+                                TableData(summaryData['data']['res_bike']
+                                            ['amount'] ==
+                                        null
+                                    ? '0'
+                                    : summaryData['data']['res_bike']
+                                        ['amount']),
+                                TableData(
+                                  summaryData['data']['res_bike']
+                                              ['total_amount'] ==
+                                          null
+                                      ? '0'
+                                      : summaryData['data']['res_bike']
+                                          ['total_amount'],
+                                )
+                              ],
+                            ),
+                            TableRow(
+                              children: <Widget>[
+                                TableData("2"),
+                                TableData("Car"),
+                                TableData(summaryData['data']['res_car']
+                                            ['total_vehicle'] ==
+                                        null
+                                    ? '0'
+                                    : summaryData['data']['res_car']
+                                        ['total_vehicle']),
+                                TableData(summaryData['data']['res_car']
+                                            ['amount'] ==
+                                        null
+                                    ? '0'
+                                    : summaryData['data']['res_car']['amount']),
+                                TableData(
+                                  summaryData['data']['res_car']
+                                              ['total_amount'] ==
+                                          null
+                                      ? '0'
+                                      : summaryData['data']['res_car']
+                                          ['total_amount'],
+                                )
+                              ],
+                            ),
+                            TableRow(
+                              children: <Widget>[
+                                TableData("3"),
+                                TableData("VIP Car"),
+                                TableData(summaryData['data']['res_vip_car']
+                                            ['total_vehicle'] ==
+                                        null
+                                    ? '0'
+                                    : summaryData['data']['res_vip_car']
+                                        ['total_vehicle']),
+                                TableData(summaryData['data']['res_vip_car']
+                                            ['amount'] ==
+                                        null
+                                    ? '0'
+                                    : summaryData['data']['res_vip_car']
+                                        ['amount']),
+                                TableData(
+                                  summaryData['data']['res_vip_car']
+                                              ['total_amount'] ==
+                                          null
+                                      ? '0'
+                                      : summaryData['data']['res_vip_car']
+                                          ['total_amount'],
+                                )
+                              ],
+                            ),
+                            TableRow(
+                              children: <Widget>[
+                                TableData(""),
+                                TableData(""),
+                                TableData(''),
+                                TableData('Total Amount'),
+                                TableData('$total')
+                              ],
+                            ),
+                          ],
+                        )
+                      : Text('data not found'),
+                ),
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: ThemeColorGreen),
+                    onPressed: () {
+                      _generatePdf(total);
+                    },
+                    child: Text(
+                      'Print',
+                      style: TextStyle(color: Colors.white),
+                    ))
+              ],
             ),
-
-      // SingleChildScrollView(
-      //         scrollDirection: Axis.horizontal,
-      //         child: DataTable(columns: [
-      //           DataColumn(label: Text('S.No')),
-      //           DataColumn(label: Text('Vehicle  Type')),
-      //           DataColumn(label: Text('Totle Vehicle')),
-      //           DataColumn(label: Text('Amount')),
-      //           DataColumn(label: Text('Totle Amount')),
-      //         ], rows: [
-      //           DataRow(cells: [
-      //             DataCell(Text('1')),
-      //             DataCell(Text('Bike')),
-      //             DataCell(
-      //                 Text(summaryData['data']['res_bike']['total_vehicle'])),
-      //             DataCell(
-      //                 Text(summaryData['data']['res_bike']['total_amount'])),
-      //             DataCell(Text(summaryData['data']['res_bike']['amount'])),
-      //           ]),
-      //           DataRow(cells: [
-      //             DataCell(Text('1')),
-      //             DataCell(Text('Car')),
-      //             DataCell(Text(summaryData['data']['res_car']['total_vehicle'])),
-      //             DataCell(Text(summaryData['data']['res_car']['total_amount'])),
-      //             DataCell(Text(summaryData['data']['res_car']['amount'])),
-      //           ]),
-      //           DataRow(cells: [
-      //             DataCell(Text('1')),
-      //             DataCell(Text('VIP Car')),
-      //             DataCell(Text(summaryData['data']['res_vip_car']['total_vehicle'])),
-      //             DataCell(Text(summaryData['data']['res_vip_car']['total_amount'])),
-      //             DataCell(Text(summaryData['data']['res_vip_car']['amount'])),
-      //           ])
-      //         ]),
-      //       )
     );
   }
 
@@ -207,24 +324,202 @@ class _SummaryState extends State<Summary> {
   buttons(String s, Summary summary) {}
 }
 
+_generatePdf(total) async {
+  final globletotal = total;
+  final pdf = pw.Document(version: PdfVersion.pdf_1_5, compress: true);
+  final font = await PdfGoogleFonts.nunitoExtraLight();
+  final headingTextStyle = await pw.TextStyle(
+      color: PdfColors.black, fontWeight: pw.FontWeight.bold, fontSize: 36);
+  final dataTextStyle = await pw.TextStyle(
+      color: PdfColors.black, fontWeight: pw.FontWeight.bold, fontSize: 36);
+  final image = await imageFromAssetBundle('assets/logo.png');
+  final headingPadding = pw.EdgeInsets.symmetric(horizontal: 5, vertical: 8);
+  final DataPadding = pw.EdgeInsets.symmetric(horizontal: 5, vertical: 8);
 
-// TableRow(
-// children: [
-// Padding(
-// padding: EdgeInsets.all(5.0),
-// child: Text(
-// summaryList['res_bike']['total_vehicle'],
-// textAlign: TextAlign.center),
-// ),
-// Padding(
-// padding: EdgeInsets.all(5.0),
-// child: Text(summaryList['res_bike']['total_amount'],
-// textAlign: TextAlign.center),
-// ),
-// Padding(
-// padding: EdgeInsets.all(5.0),
-// child: Text(summaryList['res_bike']['"amount'],
-// textAlign: TextAlign.center),
-// ),
-// ],
-// );
+  pdf.addPage(
+    pw.Page(
+      pageTheme: pw.PageTheme(
+        orientation: pw.PageOrientation.landscape,
+      ),
+      build: (context) {
+        return pw.Container(
+            margin: pw.EdgeInsets.only(right: 35),
+            height: double.infinity,
+            decoration: pw.BoxDecoration(
+                border: pw.Border.all(
+                    color: PdfColors.grey,
+                    style: pw.BorderStyle.solid,
+                    width: 1)),
+            child: pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.black),
+              children: <pw.TableRow>[
+                pw.TableRow(
+                  verticalAlignment: pw.TableCellVerticalAlignment.top,
+                  children: <pw.Widget>[
+                    pw.Center(
+                      child: pw.Padding(
+                        padding: headingPadding,
+                        child: pw.Text("Vehicle Type", style: headingTextStyle),
+                      ),
+                    ),
+                    pw.Center(
+                      child: pw.Padding(
+                        padding: headingPadding,
+                        child: pw.Text("Total", style: headingTextStyle),
+                      ),
+                    ),
+                    pw.Center(
+                      child: pw.Padding(
+                        padding: headingPadding,
+                        child: pw.Text("Amount", style: headingTextStyle),
+                      ),
+                    ),
+                    pw.Center(
+                      child: pw.Padding(
+                        padding: headingPadding,
+                        child: pw.Text("Total Amount", style: headingTextStyle),
+                      ),
+                    ),
+                  ],
+                ),
+                pw.TableRow(
+                  verticalAlignment: pw.TableCellVerticalAlignment.top,
+                  children: <pw.Widget>[
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                        "Bike",
+                        style: dataTextStyle,
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                        summaryData['data']['res_bike']['total_vehicle'] == null
+                            ? '0'
+                            : summaryData['data']['res_bike']['total_vehicle'],
+                        style: dataTextStyle,
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                        summaryData['data']['res_car']['amount'] == null
+                            ? '0'
+                            : summaryData['data']['res_car']['amount'],
+                        style: dataTextStyle,
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                        summaryData['data']['res_bike']['total_amount'] == null
+                            ? '0'
+                            : summaryData['data']['res_bike']['total_amount'],
+                        style: dataTextStyle,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.TableRow(
+                  verticalAlignment: pw.TableCellVerticalAlignment.top,
+                  children: <pw.Widget>[
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text("Car", style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                          summaryData['data']['res_car']['total_vehicle'] ==
+                                  null
+                              ? '0'
+                              : summaryData['data']['res_car']['total_vehicle'],
+                          style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                          summaryData['data']['res_car']['amount'] == null
+                              ? '0'
+                              : summaryData['data']['res_car']['amount'],
+                          style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                          summaryData['data']['res_car']['total_amount'] == null
+                              ? '0'
+                              : summaryData['data']['res_car']['total_amount'],
+                          style: dataTextStyle),
+                    ),
+                  ],
+                ),
+                pw.TableRow(
+                  verticalAlignment: pw.TableCellVerticalAlignment.top,
+                  children: <pw.Widget>[
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text("VIP Car", style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                          summaryData['data']['res_vip_car']['total_vehicle'] ==
+                                  null
+                              ? '0'
+                              : summaryData['data']['res_vip_car']
+                                  ['total_vehicle'],
+                          style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                          summaryData['data']['res_vip_car']['amount'] == null
+                              ? '0'
+                              : summaryData['data']['res_vip_car']['amount'],
+                          style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text(
+                          summaryData['data']['res_vip_car']['total_amount'] ==
+                                  null
+                              ? '0'
+                              : summaryData['data']['res_vip_car']
+                                  ['total_amount'],
+                          style: dataTextStyle),
+                    ),
+                  ],
+                ),
+                pw.TableRow(
+                  verticalAlignment: pw.TableCellVerticalAlignment.top,
+                  children: <pw.Widget>[
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text("", style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text('', style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text('Total Amount', style: dataTextStyle),
+                    ),
+                    pw.Padding(
+                      padding: DataPadding,
+                      child: pw.Text('$globletotal', style: dataTextStyle),
+                    ),
+                  ],
+                ),
+              ],
+            ));
+      },
+    ),
+  );
+  await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save());
+}
+
+

@@ -1,6 +1,4 @@
-// ignore_for_file: public_member_api_docs
 
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -8,7 +6,7 @@ import 'package:samdriya/SplashScreen.dart';
 import 'package:samdriya/Recipt.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'login.dart';
+
 
 Future<void> main() async {
   runApp( MyApp());

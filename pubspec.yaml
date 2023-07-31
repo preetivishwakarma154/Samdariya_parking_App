@@ -39,6 +39,7 @@ dependencies:
   printing: ^5.11.0
   url_launcher: ^6.1.12
   http: ^1.1.0
+  decimal: ^2.3.3
 
   shared_preferences: ^2.2.0
 
