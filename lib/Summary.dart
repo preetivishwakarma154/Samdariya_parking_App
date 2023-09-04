@@ -21,30 +21,31 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:shared_preferences/shared_preferences.dart';
 
-var total;
+var total=0.00;
 
 class Summary extends StatefulWidget {
-  const Summary({super.key});
-
+   Summary({super.key,this.token});
+var token;
   @override
   State<Summary> createState() => _SummaryState();
 }
 
 Map summaryData = Map();
 Map summaryList = Map();
+var Data= true;
 
 var _key;
 
 class _SummaryState extends State<Summary> {
   double? result;
 
-  var one, two, three;
+
 
   Future SummaryAPI() async {
     try {
       var headers = {
-        'x-access-token':
-            'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwiaWF0IjoxNjg5NjY2MDAyfQ.4oj59bZCDZ-OiAuaBNxPvjosnpraq7DKiR61yodoTqU',
+        'x-access-token':globalusertoken==null?'${widget.token}':'$globalusertoken',
+
         'Cookie': 'ci_session=9db02f6e17c5ac8b5ff9545bedba8d3edee3d163'
       };
       var request = http.MultipartRequest(
@@ -68,19 +69,28 @@ class _SummaryState extends State<Summary> {
           setState(() {
             summaryList = summaryData['data'];
             print(summaryList);
-            double one =
+            double one=0.00,two=0.00,three = 0.00;
+            one= summaryData['data']['res_bike']['total_amount']==null?0.00:
                 double.parse(summaryData['data']['res_bike']['total_amount']);
 
-            double second =
-                double.parse(summaryData['data']['res_car']['total_amount']);
-            double three = double.parse(
+
+                two = summaryData['data']['res_car']['total_amount']==null?0.00:double.parse(summaryData['data']['res_car']['total_amount']);
+             three = summaryData['data']['res_vip_car']['total_amount']==null?0.00:double.parse(
                 summaryData['data']['res_vip_car']['total_amount']);
-            total = one + second + three;
-            print(total);
+            print('$one,$two, $three');
+
+            total = one + two + three;
+           // print(total);
           });
         }
-      } else {
+      }
+      else if(response.statusCode==403) {
+        Data = false;
+        print("data not found");
+      }
+      else{
         print(response.reasonPhrase);
+        Data = false;
       }
     } catch (e) {
       print(e);
@@ -100,9 +110,9 @@ class _SummaryState extends State<Summary> {
 
   @override
   void initState() {
-    setState(() {
-      SummaryAPI();
-    });
+    SummaryAPI();
+    print(globalusertoken);
+    print("token is ${widget.token}");
     super.initState();
   }
 
@@ -160,13 +170,16 @@ class _SummaryState extends State<Summary> {
           ),
         ],
       ),
-      body: summaryData.isEmpty
+      body:
+
+      summaryData.isEmpty||summaryData==null
           ? Center(
               child: Center(
                 child: CircularProgressIndicator(),
               ),
             )
-          : Column(
+          :Data ==false?Center(child: Text('Data not found'),): Column(
+
               children: [
                 Container(
                   margin:
@@ -327,11 +340,11 @@ class _SummaryState extends State<Summary> {
 _generatePdf(total) async {
   final globletotal = total;
   final pdf = pw.Document(version: PdfVersion.pdf_1_5, compress: true);
-  final font = await PdfGoogleFonts.nunitoExtraLight();
+  final font = await PdfGoogleFonts.abhayaLibreExtraBold();
   final headingTextStyle = await pw.TextStyle(
-      color: PdfColors.black, fontWeight: pw.FontWeight.bold, fontSize: 36);
+      color: PdfColors.black, fontWeight: pw.FontWeight.bold, fontSize: 34,font: font);
   final dataTextStyle = await pw.TextStyle(
-      color: PdfColors.black, fontWeight: pw.FontWeight.bold, fontSize: 36);
+      color: PdfColors.black, fontWeight: pw.FontWeight.bold, fontSize: 36,font: font);
   final image = await imageFromAssetBundle('assets/logo.png');
   final headingPadding = pw.EdgeInsets.symmetric(horizontal: 5, vertical: 8);
   final DataPadding = pw.EdgeInsets.symmetric(horizontal: 5, vertical: 8);

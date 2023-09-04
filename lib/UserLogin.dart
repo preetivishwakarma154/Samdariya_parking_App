@@ -19,10 +19,9 @@ class UserLogin extends StatefulWidget {
   State<UserLogin> createState() => _UserLoginState();
 }
 
-String? onlynumber;
+
 String? newusername;
 String? newuserPassword ;
-String? newuserEmail;
 
 class _UserLoginState extends State<UserLogin> {
   GlobalKey<FormState> formkey = GlobalKey<FormState>();
@@ -69,7 +68,7 @@ class _UserLoginState extends State<UserLogin> {
   void _setKey(String key) async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setString('token', key);
-    print('set key');
+    print('set key $key');
   }
  
   Future Login(login, password) async {
@@ -96,12 +95,13 @@ class _UserLoginState extends State<UserLogin> {
         if (datalist['status'] == 1) {
           print(datalist);
           _setKey(datalist['data']['token']);
+          print('token is ${datalist['data']['token']}');
 
 
           Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => CheckINOut(),
+                builder: (context) => CheckINOut(token:datalist['data']['token'] ,),
               ));
         } else {
           setState(() {
@@ -137,8 +137,7 @@ class _UserLoginState extends State<UserLogin> {
 
   @override
   Widget build(BuildContext context) {
-    print('your number -');
-    print(onlynumber);
+
     // print(newuserEmail);
     // print(newuserPassword);
     // print(newusername);
@@ -191,10 +190,6 @@ class _UserLoginState extends State<UserLogin> {
                           if (value == null || value!.isEmpty) {
                             setState(() {
                               nameerror = "Name can't be empty";
-                            });
-                          } else if (value!.length < 3) {
-                            setState(() {
-                              nameerror = "Too short name";
                             });
                           }
                         },
@@ -273,11 +268,7 @@ class _UserLoginState extends State<UserLogin> {
                               passworderror = "Password can't be empty";
                             });
                           }
-                          else if (value!.length < 3) {
-                            setState(() {
-                              nameerror = "Too short name";
-                            });
-                          }
+
 
                         },
                         obscureText: true,

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
-
 import 'package:samdriya/InputBox.dart';
 import 'package:samdriya/Recipt.dart';
 import 'package:samdriya/SplashScreen.dart';
@@ -16,13 +15,11 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'login.dart';
-
 enum Value { Bike, Car, VIP_Car }
 
 class CheckINOut extends StatefulWidget {
-  const CheckINOut({super.key});
-
+  CheckINOut({super.key, this.token});
+  var token;
   @override
   State<CheckINOut> createState() => _CheckINOutState();
 }
@@ -37,7 +34,8 @@ class _CheckINOutState extends State<CheckINOut> {
   var nameerror;
 
   var valuerror;
-  String? newusername;
+
+  var newusername;
 
   bool? isapicalled = false;
 
@@ -48,8 +46,8 @@ class _CheckINOutState extends State<CheckINOut> {
   String? numbererror;
 
   var newusernumber;
-  _DialogBox()async {
-     await showDialog(
+  _DialogBox() async {
+    await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -103,15 +101,9 @@ class _CheckINOutState extends State<CheckINOut> {
                       style: TextStyle(color: Colors.white),
                     ),
                     onPressed: () {
-                      newusernumber==null?
-                      CheckIN(newusername, _value,
-                      ''):
-                      CheckIN(newusername, _value,
-                          newusernumber);
-
-
-
-
+                      newusernumber == null
+                          ? CheckIN(newusername, _value, '')
+                          : CheckIN(newusername, _value, newusernumber);
                     },
                   ),
                 ),
@@ -121,14 +113,12 @@ class _CheckINOutState extends State<CheckINOut> {
         );
       },
     );
-
   }
 
   Future CheckIN(vehicle_number, vehicle_type, mobile_no) async {
     try {
       var headers = {
-        'x-access-token':
-            'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwiaWF0IjoxNjkwMDMxNTUzfQ.eP5pM_LThjVdnoBOTJcmIjTwIN66ijoMzdE6dREoVew',
+        'x-access-token': globalusertoken==null? '${widget.token}' :'$globalusertoken',
         'Cookie': 'ci_session=15e2ca751bd413d1ea2822611b865217982377f2'
       };
       var request = http.MultipartRequest('POST',
@@ -145,38 +135,38 @@ class _CheckINOutState extends State<CheckINOut> {
       http.StreamedResponse response = await request.send();
       isapicalled = true;
       var data = await response.stream.bytesToString();
-      checkInData = jsonDecode(data);
+
       if (response.statusCode == 200) {
-
-
+        setState(() {
+          checkInData = jsonDecode(data);
+          print(checkInData);
+        });
 
         if (checkInData['status'] == 1) {
           setState(() {
             reciptAPI(checkInData['data']['check_in_id']);
           });
           Navigator.pop(context);
-
-
-
-
-
-
-         
         }
       } else {
         setState(() {
           _error = checkInData['message'];
+          print(checkInData);
+          print(globalusertoken);
         });
       }
     } catch (e) {
       print(e);
     }
   }
+
   Future reciptAPI(check_in_id) async {
     try {
       var headers = {
-        'x-access-token':
-        'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwiaWF0IjoxNjkwMDMxNTUzfQ.eP5pM_LThjVdnoBOTJcmIjTwIN66ijoMzdE6dREoVew',
+
+
+
+        'x-access-token': globalusertoken==null?'${widget.token}':'$globalusertoken',
         'Cookie': 'ci_session=6ab94e5e9ed87b3fe01eaf7140c283c4e2992216'
       };
       var request = http.MultipartRequest(
@@ -192,16 +182,23 @@ class _CheckINOutState extends State<CheckINOut> {
       var data = await response.stream.bytesToString();
       reciptData = jsonDecode(data);
       if (response.statusCode == 200) {
-
-
         print(reciptData);
         if (reciptData['status'] == 1) {
-          await  _generatePdf();
+          await _generatePdf();
 
-          
-         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => CheckINOut(),));
-          
 
+
+
+
+
+
+
+
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CheckINOut(),
+              ));
         }
       } else {
         print(response.reasonPhrase);
@@ -226,15 +223,33 @@ class _CheckINOutState extends State<CheckINOut> {
     print('YOUR KEY - "$key"');
     print('key deleted');
   }
-@override
-  void dispose() {
-  _value = null;
 
-  newusernumber= null;
-  newusername= null;
+  @override
+  void dispose() {
+    _value = null;
+
+    newusernumber = null;
+    newusername = null;
 
     super.dispose();
   }
+  void _getKey() async {
+    print('running');
+    final prefs = await SharedPreferences.getInstance();
+    final key = prefs.get('token');
+    setState(() {
+      globalusertoken = key;
+    });
+    print('YOUR KEY - "$key"');
+  }
+  @override
+  void initState() {
+    print(globalusertoken);
+    _getKey();
+    print('token ${widget.token}');
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -250,7 +265,9 @@ class _CheckINOutState extends State<CheckINOut> {
                   Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => Summary(),
+                        builder: (context) => Summary(
+                          token: widget.token,
+                        ),
                       ));
                 },
                 child: Text(
@@ -258,9 +275,12 @@ class _CheckINOutState extends State<CheckINOut> {
                   style: TextStyle(color: Colors.white),
                 )),
           ),
-
           Padding(
-            padding: const EdgeInsets.only(top: 20, right: 30, bottom: 5,),
+            padding: const EdgeInsets.only(
+              top: 20,
+              right: 30,
+              bottom: 5,
+            ),
             child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: ThemeColorRed),
                 onPressed: () {
@@ -280,9 +300,10 @@ class _CheckINOutState extends State<CheckINOut> {
                             _deletetoken();
                             Navigator.pushAndRemoveUntil(
                                 context,
-                                MaterialPageRoute(builder: (BuildContext context) => UserLogin()),
-                                ModalRoute.withName('/')
-                            );
+                                MaterialPageRoute(
+                                    builder: (BuildContext context) =>
+                                        UserLogin()),
+                                ModalRoute.withName('/'));
                           }, // <-- SEE HERE
                           child: new Text('Yes'),
                         ),
@@ -299,12 +320,16 @@ class _CheckINOutState extends State<CheckINOut> {
       ),
       body: SingleChildScrollView(
         child: Container(
-
-          padding: EdgeInsets.only(top: 20,bottom: 20,left: 5,right: 5),
+          padding: EdgeInsets.only(top: 20, bottom: 20, left: 5, right: 5),
           decoration: BoxDecoration(
               border: Border.all(
                   color: Colors.black12, width: 1, style: BorderStyle.solid)),
-          margin: EdgeInsets.only(top: 15, right: 20, left: 15, bottom: 20,),
+          margin: EdgeInsets.only(
+            top: 15,
+            right: 20,
+            left: 15,
+            bottom: 20,
+          ),
           child: Form(
             key: formkey,
             child: Column(
@@ -332,7 +357,8 @@ class _CheckINOutState extends State<CheckINOut> {
                         ),
                         leading: Radio<String>(
                           value: '1',
-                          visualDensity: VisualDensity(horizontal: 0, vertical: -4),
+                          visualDensity:
+                              VisualDensity(horizontal: 0, vertical: -4),
                           groupValue: _value,
                           onChanged: (value) {
                             setState(() {
@@ -353,7 +379,8 @@ class _CheckINOutState extends State<CheckINOut> {
                           leading: Radio<String>(
                             value: '2',
                             groupValue: _value,
-                              visualDensity: VisualDensity(horizontal: 0, vertical: -4),
+                            visualDensity:
+                                VisualDensity(horizontal: 0, vertical: -4),
                             onChanged: (value) {
                               setState(() {
                                 _value = value!;
@@ -413,7 +440,7 @@ class _CheckINOutState extends State<CheckINOut> {
                     ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 30,right: 20,left: 20),
+                  padding: const EdgeInsets.only(top: 30, right: 20, left: 20),
                   child: Text(
                     "Vehicle",
                     style: TextStyle(color: Colors.black, fontSize: 18),
@@ -457,8 +484,7 @@ class _CheckINOutState extends State<CheckINOut> {
                             border: OutlineInputBorder(
                                 borderSide: BorderSide(color: Colors.black)),
                             focusedBorder: OutlineInputBorder(
-                                borderSide:
-                                    BorderSide(color: Colors.black))))),
+                                borderSide: BorderSide(color: Colors.black))))),
                 if (nameerror != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 3, bottom: 10.0),
@@ -484,7 +510,7 @@ class _CheckINOutState extends State<CheckINOut> {
                     ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 20,left: 20,right: 20),
+                  padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
                   child: Text(
                     "Mobile Number",
                     style: TextStyle(color: Colors.black, fontSize: 18),
@@ -501,48 +527,36 @@ class _CheckINOutState extends State<CheckINOut> {
                     child: TextFormField(
                         initialValue: newusername,
                         keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(10)
-                        ],
-
+                        inputFormatters: [LengthLimitingTextInputFormatter(10)],
                         validator: (value) {
                           setState(() {
                             if (value == null || value.isEmpty) {
-
-
-                            }else if (value.length < 10) {
-                              numbererror =
-                              "Please enter full 10 digit number";
+                            } else if (value.length < 10) {
+                              numbererror = "Please enter full 10 digit number";
                             }
                           });
 
-
-
-
                           if (value!.contains(',')) {
                             numbererror =
-                            "Invalid input. Please enter numbers only";
+                                "Invalid input. Please enter numbers only";
                           }
                           if (value.contains('.')) {
                             numbererror =
-                            "Invalid input. Please enter numbers only";
+                                "Invalid input. Please enter numbers only";
                           }
                           if (value.contains('-')) {
                             numbererror =
-                            "Invalid input. Please enter numbers only";
+                                "Invalid input. Please enter numbers only";
                           }
                           if (value.contains(' ')) {
                             numbererror =
-                            "Invalid input. Please enter numbers only without any spaces";
+                                "Invalid input. Please enter numbers only without any spaces";
                           }
-
-
                         },
                         onChanged: (value) {
                           setState(() {
                             numbererror = null;
                             newusernumber = value;
-
                           });
                         },
                         decoration: InputDecoration(
@@ -556,12 +570,10 @@ class _CheckINOutState extends State<CheckINOut> {
                             prefix: SizedBox(
                               height: 20,
                             ),
-
                             border: OutlineInputBorder(
                                 borderSide: BorderSide(color: Colors.black)),
                             focusedBorder: OutlineInputBorder(
-                                borderSide:
-                                BorderSide(color: Colors.black))))),
+                                borderSide: BorderSide(color: Colors.black))))),
                 if (numbererror != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 3, bottom: 10.0),
@@ -574,7 +586,7 @@ class _CheckINOutState extends State<CheckINOut> {
                             children: [
                               Container(
                                   width:
-                                  MediaQuery.of(context).size.width - 100,
+                                      MediaQuery.of(context).size.width - 100,
                                   child: Text(
                                     "$numbererror",
                                     style: TextStyle(
@@ -586,24 +598,19 @@ class _CheckINOutState extends State<CheckINOut> {
                       ],
                     ),
                   ),
-
-
-
                 Padding(
-                  padding: const EdgeInsets.only(left: 20,right: 20,top: 8),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 8),
                   child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: ThemeColorGreen,
+                        backgroundColor: ThemeColorGreen,
                       ),
                       onPressed: () {
                         if (formkey.currentState!.validate()) {}
                         if (_value == null) {
                           isapicalled = true;
-                        } else if (nameerror == null && numbererror==null) {
+                        } else if (nameerror == null && numbererror == null) {
                           _DialogBox();
-
                         }
-
                       },
 
                       //_generatePdf();
@@ -615,7 +622,6 @@ class _CheckINOutState extends State<CheckINOut> {
                         ),
                       )),
                 ),
-
               ],
             ),
           ),
@@ -625,20 +631,20 @@ class _CheckINOutState extends State<CheckINOut> {
   }
 }
 
-
-
 _generatePdf() async {
   final pdf = pw.Document(version: PdfVersion.pdf_1_5, compress: true);
-  final font = await PdfGoogleFonts.nunitoExtraLight();
+  final font = await PdfGoogleFonts.abhayaLibreExtraBold();
+ // var myFont = Font.ttf(data);
+
+
   final image = await imageFromAssetBundle('assets/logo.png');
 
   pdf.addPage(
     pw.Page(
       build: (context) {
         return pw.Container(
-            height: 550,
-
-            padding: pw.EdgeInsets.only(left: 5, right: 5,top: 10),
+            height: 600,
+            padding: pw.EdgeInsets.only(left: 5, right: 5, top: 10),
             decoration: pw.BoxDecoration(
                 border: pw.Border.all(
                     color: PdfColors.grey,
@@ -651,28 +657,32 @@ _generatePdf() async {
                 pw.Image(image, height: 120),
                 pw.Text(reciptData['data']['vehicle'],
                     style: pw.TextStyle(
-                      fontSize: 48,
+                      fontSize: 54,
+                      font: font
                     )),
                 pw.SizedBox(height: 10),
                 pw.Text(reciptData['data']['vehicle_no'],
                     style: pw.TextStyle(
-                      fontSize: 48,
+                      fontSize: 54,
+                        font: font
                     )),
                 pw.SizedBox(height: 10),
                 pw.Text(reciptData['data']['check_in_time'],
-                    style: pw.TextStyle(fontSize: 48)),
+                    style: pw.TextStyle(fontSize: 54,font: font)),
                 pw.SizedBox(height: 10),
                 pw.Text(reciptData['data']['entry_charge'],
-
-                    style: pw.TextStyle(fontSize: 48)),
+                    style: pw.TextStyle(fontSize: 54,font: font)),
                 pw.SizedBox(height: 10),
-                pw.Text(reciptData['data']['mobileno']==null?'':reciptData['data']['mobileno'],
-                    style: pw.TextStyle(fontSize: 48)),
+                pw.Text(
+                    reciptData['data']['mobileno'] == null
+                        ? ''
+                        : reciptData['data']['mobileno'],
+                    style: pw.TextStyle(fontSize: 54,font: font)),
                 pw.SizedBox(height: 25),
                 pw.Align(
                     alignment: pw.Alignment.bottomCenter,
                     child: pw.Text("Thank you, visit again",
-                        style: pw.TextStyle(fontSize: 28))),
+                        style: pw.TextStyle(fontSize: 38,font: font),)),
               ],
             ));
       },
